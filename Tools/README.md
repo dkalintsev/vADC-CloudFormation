@@ -1,6 +1,6 @@
-# get-instances
+# vADC-amis
 
-A couple shell scripts to fetch a list of AMIs from AWS and build "Versions" parameter and "AMI" map for Pulse vADC CloudFormation templates.
+A shell script to fetch a list of AMIs from AWS and build "Versions" parameter and "AMI" map for [Pulse vADC CloudFormation template](../Template).
 
 Script seems to work fine now, at least when run from an Amazon Linux EC2 instance with appropriate IAM permissions, or when run from MacOS Terminal with AWS CLI set up.
 
