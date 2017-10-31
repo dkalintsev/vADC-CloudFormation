@@ -1,4 +1,4 @@
-# Autoclustering Brocade vADC + example web server + config by Puppet
+# Autoclustering Pulse vADC + example web server + config by Puppet
 
 This template builds on a couple of legacy templates: [vADC Cluster configured by Puppet](https://github.com/dkalintsev/Brocade/tree/v1.0.0/vADC/CloudFormation/Templates/Configured-by-Puppet) and [Autoclustering vADCs](https://github.com/dkalintsev/Brocade/tree/v1.0.0/vADC/CloudFormation/Templates/Old/Variants-and-experimental/Autoclustering).
 
@@ -81,14 +81,14 @@ You can deploy this template directly through AWS console or CLI, by downloading
 
 You can also launch this template into the `us-east-1` region by clicking the "Launch Stack" button below:
 
-<a href="https://console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks/new?stackName=Brocade-vADC-webapp&templateURL=https://s3-ap-southeast-2.amazonaws.com/7pjmj9xxfjlcnq/Template/vADC-ASG-Puppet.template"><img src="https://s3.amazonaws.com/cloudformation-examples/cloudformation-launch-stack.png"></a>
+<a href="https://console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks/new?stackName=Pulse-vADC-webapp&templateURL=https://s3-ap-southeast-2.amazonaws.com/7pjmj9xxfjlcnq/Template/vADC-ASG-Puppet.template"><img src="https://s3.amazonaws.com/cloudformation-examples/cloudformation-launch-stack.png"></a>
 
 
-**Note**: You will need to activate either hourly or annual subscription to Brocade vADC software through the AWS Marketplace before you'll be able to deploy this template successfully. To do this:
+**Note**: You will need to activate either hourly or annual subscription to Pulse vADC software through the AWS Marketplace before you'll be able to deploy this template successfully. To do this:
 
 1. Visit [AWS Marketplace](https://aws.amazon.com/marketplace/)
-2. Type "brocade virtual traffic manager" into the "Search AWS Marketplace" box and click "Go"
-3. Click the "Brocade Virtual Traffic Manager Developer Edition" in the results (or select an appropriate different one if you've selected a different SKU)
+2. Type "Pulse virtual traffic manager" into the "Search AWS Marketplace" box and click "Go"
+3. Click the "Pulse Secure Virtual Traffic Manager Developer & BYOL Edition" in the results (or select an appropriate different one if you've selected a different SKU)
 4. Select **Hourly** or **Annual** in the *"Pricing Details"* box
 5. Click "Continue" button
 6. On the next screen, first click "Manual Launch" tab away from pre-selected "1-Click Launch", then click yellow "Accept Software Terms" button in the "Price for your selections" box.
@@ -96,10 +96,10 @@ You can also launch this template into the `us-east-1` region by clicking the "L
 ## Q&A
 
 **Q**: My deployment sits forever at *"CREATE\_IN\_PROGRESS"* of vADC instances, then fails and rolls back. In the "Status reason" of CloudFormation "Events" log I see a message similar to *"In order to use this AWS Marketplace product you need to accept terms and subscribe. To do so please visit http://aws.amazon.com/marketplace/pp?sku=30zvsq8o1jmbp6jvzis0wfgdt"* against the vADC1 AWS::EC2::Instance.  
-**A**: You haven't subscribed to Brocade vADC software through the AWS Marketplace yet. Please visit the link CloudFormation has shown (which may be different from the one above), which will take you to the step #4 in the subscription instructions above the Q&A. Once subscribed, select "Delete Stack", and try deploying again. Please note that there are many SKUs available; so make sure you subscribe to the one that your template is trying to deploy. The easiest way to get to the right one is to visit the URL that CloudFormation tells you in the error message. :)
+**A**: You haven't subscribed to Pulse vADC software through the AWS Marketplace yet. Please visit the link CloudFormation has shown (which may be different from the one above), which will take you to the step #4 in the subscription instructions above the Q&A. Once subscribed, select "Delete Stack", and try deploying again. Please note that there are many SKUs available; so make sure you subscribe to the one that your template is trying to deploy. The easiest way to get to the right one is to visit the URL that CloudFormation tells you in the error message. :)
 
 **Q**: I don't need the vADC anymore. How can I cancel my subscription?  
-**A**: Visit [Your Software Subscriptions](https://aws.amazon.com/marketplace/library/) in AWS Marketplace, and click "Cancel Subscription" against the "Brocade Virtual Traffic Manager Developer Edition", or the appropriate other edition you may have chosen.
+**A**: Visit [Your Software Subscriptions](https://aws.amazon.com/marketplace/library/) in AWS Marketplace, and click "Cancel Subscription" against the "Pulse Secure Virtual Traffic Manager Developer & BYOL Edition", or the appropriate other edition you may have chosen.
 
 **Q**: I selected a vADC version "xxx", and deployment has failed. I'm subscribed to the product. I also see something about product being no longer available from Marketplace in the CloudFormation Events log.  
 **A**: I could not find any way to tell which images that Marketplace query returns are actually "active" from the ones that are not. Information returned by the "describe-images" CLI command for the AMIs that are active/deployable and the ones that "no longer available" provides no clues - they both look identical. :( The only reliable way to tell which version really is available it to visit product's page in Marketplace, and click "(Other available versions)". :( 
@@ -111,7 +111,7 @@ You can also launch this template into the `us-east-1` region by clicking the "L
 **A**: I'm using them as a key to look up AMI IDs in a map. CloudFormation only accepts alphanumerical characters in keys, so dots are no-go. :(
 
 **Q**: What's the story with licensing?  
-**A**: The AMI IDs in this template correspond to the Developer Edition of vADC. It has all features enabled, but is limited to 2 Mbit/s of throughput. Developer edition can be converted to a fully functional instance by giving it a valid license, either directly or through a Service Director. Alternatively, you can modify the template with the AMIs of one of the licensed versions of vADC. To help with this, you can use the [`vADC-amis.sh`](https://github.com/dkalintsev/Brocade/blob/master/CloudFormation/Tools/vADC-amis.sh) script. Modify the value of the `SKU` varible near the start of the script to the one you want, and run it from a machine that has AWS CLI installed with permissions to list AWS Marketplace items.
+**A**: The AMI IDs in this template correspond to the Developer Edition of vADC. It has all features enabled, but is limited to 2 Mbit/s of throughput. Developer edition can be converted to a fully functional instance by giving it a valid license, either directly or through a Service Director. Alternatively, you can modify the template with the AMIs of one of the licensed versions of vADC. To help with this, you can use the [`vADC-amis.sh`](../Tools/vADC-amis.sh) script. Modify the value of the `SKU` varible near the start of the script to the one you want, and run it from a machine that has AWS CLI installed with permissions to list AWS Marketplace items.
 
 **Q**: What's the support status of this? Is this official?  
 **A**: This template is considered "experimental/unofficial", but I encourage you to open GitHub issues and/or submit pull requests as you see fit, and I'll deal with them when I can. This will also help us determine whether there's enough interest in a template, so that we can make it official/supported.
