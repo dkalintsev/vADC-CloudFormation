@@ -288,9 +288,15 @@ fi
 #
 cat "$manifest_template" | awk 1 ORS="|" \
   | sed -e "s/__vADC1PrivateIP__/$vADC1PrivateIP/g" \
-  | sed -e "s/\(.*brocadevtm::pools { '$pool':.*basic__nodes_table                       => '\)\(\[[^]]*\]\)\(.*\)/\1\[$nodes\]\3/g" \
+  | perl -pe 's/(.*brocadevtm::pools \{ '\'${pool}\'':.*?basic__nodes_table\s+=> '\'')(\[[^]]*\])(.*)/\1\['${nodes}'\]\3/g' \
   | sed -e "s/__vADCnDNS__/$vADCnDNS/g" \
   | tr '|' '\n' > "$changeSetF"
+
+# Old sed command; was found to be defective when dealing with multiple pools
+# due to sed's greedy regex match :( Replaced with perl above. Kept JIC.
+#
+#  | sed -e "s/\(.*brocadevtm::pools { '$pool':.*basic__nodes_table                       => '\)\(\[[^]]*\]\)\(.*\)/\1\[$nodes\]\3/g" \
+
 
 # Some awk versions add an extra \n to the end of file.
 # Let's deal with that:
