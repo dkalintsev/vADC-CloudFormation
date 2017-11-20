@@ -342,40 +342,25 @@ instanceType=$(cat $resFName | \
     jq -r ".Reservations[].Instances[].InstanceType")
 
 case $instanceType in
-    t2.small)
-    maxPIPs=4
-    ;;
-    t2.medium)
+    c1.medium)
     maxPIPs=6
     ;;
-    t2.large)
-    maxPIPs=12
+    c1.xlarge)
+    maxPIPs=15
     ;;
-    m4.large)
+    c3.large)
     maxPIPs=10
     ;;
-    m4.xlarge)
+    c3.xlarge)
     maxPIPs=15
     ;;
-    m4.2xlarge)
+    c3.2xlarge)
     maxPIPs=15
     ;;
-    m4.4xlarge)
+    c3.4xlarge)
     maxPIPs=30
     ;;
-    m4.10xlarge)
-    maxPIPs=30
-    ;;
-    m3.medium)
-    maxPIPs=6
-    ;;
-    m3.large)
-    maxPIPs=10
-    ;;
-    m3.xlarge)
-    maxPIPs=15
-    ;;
-    m3.2xlarge)
+    c3.8xlarge)
     maxPIPs=30
     ;;
     c4.large)
@@ -393,19 +378,166 @@ case $instanceType in
     c4.8xlarge)
     maxPIPs=30
     ;;
-    c3.large)
+    c5.large)
     maxPIPs=10
     ;;
-    c3.xlarge)
+    c5.xlarge)
     maxPIPs=15
     ;;
-    c3.2xlarge)
+    c5.2xlarge)
     maxPIPs=15
     ;;
-    c3.4xlarge)
+    c5.4xlarge)
     maxPIPs=30
     ;;
-    c3.8xlarge)
+    c5.9xlarge)
+    maxPIPs=30
+    ;;
+    c5.18xlarge)
+    maxPIPs=50
+    ;;
+    cc2.8xlarge)
+    maxPIPs=30
+    ;;
+    cg1.4xlarge)
+    maxPIPs=30
+    ;;
+    cr1.8xlarge)
+    maxPIPs=30
+    ;;
+    d2.xlarge)
+    maxPIPs=15
+    ;;
+    d2.2xlarge)
+    maxPIPs=15
+    ;;
+    d2.4xlarge)
+    maxPIPs=30
+    ;;
+    d2.8xlarge)
+    maxPIPs=30
+    ;;
+    f1.2xlarge)
+    maxPIPs=15
+    ;;
+    f1.16xlarge)
+    maxPIPs=50
+    ;;
+    g2.2xlarge)
+    maxPIPs=15
+    ;;
+    g2.8xlarge)
+    maxPIPs=30
+    ;;
+    g3.4xlarge)
+    maxPIPs=30
+    ;;
+    g3.8xlarge)
+    maxPIPs=30
+    ;;
+    g3.16xlarge)
+    maxPIPs=50
+    ;;
+    hs1.8xlarge)
+    maxPIPs=30
+    ;;
+    i2.xlarge)
+    maxPIPs=15
+    ;;
+    i2.2xlarge)
+    maxPIPs=15
+    ;;
+    i2.4xlarge)
+    maxPIPs=30
+    ;;
+    i2.8xlarge)
+    maxPIPs=30
+    ;;
+    i3.large)
+    maxPIPs=10
+    ;;
+    i3.xlarge)
+    maxPIPs=15
+    ;;
+    i3.2xlarge)
+    maxPIPs=15
+    ;;
+    i3.4xlarge)
+    maxPIPs=30
+    ;;
+    i3.8xlarge)
+    maxPIPs=30
+    ;;
+    i3.16xlarge)
+    maxPIPs=50
+    ;;
+    m1.small)
+    maxPIPs=4
+    ;;
+    m1.medium)
+    maxPIPs=6
+    ;;
+    m1.large)
+    maxPIPs=10
+    ;;
+    m1.xlarge)
+    maxPIPs=15
+    ;;
+    m2.xlarge)
+    maxPIPs=15
+    ;;
+    m2.2xlarge)
+    maxPIPs=30
+    ;;
+    m2.4xlarge)
+    maxPIPs=30
+    ;;
+    m3.medium)
+    maxPIPs=6
+    ;;
+    m3.large)
+    maxPIPs=10
+    ;;
+    m3.xlarge)
+    maxPIPs=15
+    ;;
+    m3.2xlarge)
+    maxPIPs=30
+    ;;
+    m4.large)
+    maxPIPs=10
+    ;;
+    m4.xlarge)
+    maxPIPs=15
+    ;;
+    m4.2xlarge)
+    maxPIPs=15
+    ;;
+    m4.4xlarge)
+    maxPIPs=30
+    ;;
+    m4.10xlarge)
+    maxPIPs=30
+    ;;
+    m4.16xlarge)
+    maxPIPs=30
+    ;;
+    p2.xlarge)
+    maxPIPs=15
+    ;;
+    p2.8xlarge)
+    maxPIPs=30
+    ;;
+    p2.16xlarge)
+    maxPIPs=30
+    ;;
+    p3.2xlarge)
+    maxPIPs=15
+    ;;
+    p3.8xlarge)
+    maxPIPs=30
+    ;;
+    p3.16xlarge)
     maxPIPs=30
     ;;
     r3.large)
@@ -423,7 +555,77 @@ case $instanceType in
     r3.8xlarge)
     maxPIPs=30
     ;;
+    r4.large)
+    maxPIPs=10
+    ;;
+    r4.xlarge)
+    maxPIPs=15
+    ;;
+    r4.2xlarge)
+    maxPIPs=15
+    ;;
+    r4.4xlarge)
+    maxPIPs=30
+    ;;
+    r4.8xlarge)
+    maxPIPs=30
+    ;;
+    r4.16xlarge)
+    maxPIPs=50
+    ;;
+    t1.micro)
+    maxPIPs=2
+    ;;
+    t2.nano)
+    maxPIPs=2
+    ;;
+    t2.micro)
+    maxPIPs=2
+    ;;
+    t2.small)
+    maxPIPs=4
+    ;;
+    t2.medium)
+    maxPIPs=6
+    ;;
+    t2.large)
+    maxPIPs=12
+    ;;
+    t2.xlarge)
+    maxPIPs=15
+    ;;
+    t2.2xlarge)
+    maxPIPs=15
+    ;;
+    x1.16xlarge)
+    maxPIPs=30
+    ;;
+    x1.32xlarge)
+    maxPIPs=30
+    ;;
+    x1e.xlarge)
+    maxPIPs=10
+    ;;
+    x1e.2xlarge)
+    maxPIPs=15
+    ;;
+    x1e.4xlarge)
+    maxPIPs=15
+    ;;
+    x1e.8xlarge)
+    maxPIPs=15
+    ;;
+    x1e.16xlarge)
+    maxPIPs=30
+    ;;
+    x1e.32xlarge)
+    maxPIPs=30
+    ;;
 esac
+
+# One of the private IPs is used for primary; decreasing maxPIPs by 1.
+let "m = $maxPIPs - 1"
+maxPIPs=$m
 
 if (( "$numTIPs" > "$maxPIPs" )); then
     logMsg "027: Asking for more private IPs (${numTIPs}) than our instance type ${instanceType} supports (${maxPIPs}); caping it."

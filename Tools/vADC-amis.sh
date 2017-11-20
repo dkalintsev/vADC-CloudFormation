@@ -4,7 +4,7 @@
 #
 # Pattern to match when querying AWS for vADC AMIs
 #
-vADCAMI='*stingray-traffic-manager-*,*brocade-virtual-traffic-manager*'
+vADCAMI='*stingray-traffic-manager-*,*brocade-virtual-traffic-manager*,*pulse-secure-virtual-traffic-manager*'
 #
 # Pattern to match the vADC AMI SKU Type; "STM-DEV" by default.
 #
