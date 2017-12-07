@@ -699,7 +699,7 @@
           "CreateFiles" : {
             "files" : {
               "/tmp/autocluster.sh" : {
-                "source": "https://raw.githubusercontent.com/dkalintsev/vADC-CloudFormation/SD-dev/Template/autocluster.sh",
+                "source": "https://raw.githubusercontent.com/dkalintsev/vADC-CloudFormation/v1.1.0/Template/autocluster.sh",
                 "context": {
                   "ClusterID": { "Fn::Join": [ "-", [
                     { "Ref": "AWS::StackName" },
@@ -711,7 +711,7 @@
                 "owner": "root"
               },
               "/tmp/housekeeper.sh" : {
-                "source": "https://raw.githubusercontent.com/dkalintsev/vADC-CloudFormation/SD-dev/Template/housekeeper.sh",
+                "source": "https://raw.githubusercontent.com/dkalintsev/vADC-CloudFormation/v1.1.0/Template/housekeeper.sh",
                 "context": {
                   "ClusterID": { "Fn::Join": [ "-", [
                     { "Ref": "AWS::StackName" },
