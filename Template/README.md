@@ -73,7 +73,7 @@ When generating your own manifest, please make sure to give `-v` parameter the R
 
 - Template doesn't add a license key or link your cluster to a Services Director.
 
-- Tested with vADC version 11.1, 17.1, 17.2, and 17.3. Please let me know if you hit problems.
+- Tested with vADC version 11.1, 17.1, 17.2, 17.3, and 17.4. Please let me know if you hit problems.
 
 ## How to use
 
@@ -81,7 +81,7 @@ You can deploy this template directly through AWS console or CLI, by downloading
 
 You can also launch this template into the `us-east-1` region by clicking the "Launch Stack" button below:
 
-<a href="https://console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks/new?stackName=Pulse-vADC-webapp&templateURL=https://s3-ap-southeast-2.amazonaws.com/7pjmj9xxfjlcnq/Template/vADC-ASG-Puppet.template"><img src="https://s3.amazonaws.com/cloudformation-examples/cloudformation-launch-stack.png"></a>
+<a href="https://console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks/new?stackName=Pulse-vADC-webapp&templateURL=https://s3-ap-southeast-2.amazonaws.com/7pjmj9xxfjlcnq/vADC-CloudFormation/Template/vADC-ASG-Puppet.template"><img src="https://s3.amazonaws.com/cloudformation-examples/cloudformation-launch-stack.png"></a>
 
 
 **Note**: You will need to activate either hourly or annual subscription to Pulse vADC software through the AWS Marketplace before you'll be able to deploy this template successfully. To do this:

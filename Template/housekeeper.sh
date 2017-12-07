@@ -2,7 +2,7 @@
 #
 # This script is customised during vADC instance deployment by cfn-init
 # Please see example usage in the CloudFormation template:
-# https://github.com/dkalintsev/Brocade/blob/master/vADC/CloudFormation/Templates/Variants-and-experimental/ASG-Puppet/vADC-ASG-Puppet.template
+# https://github.com/dkalintsev/vADC-CloudFormation/raw/master/Template/vADC-ASG-Puppet.template
 #
 # The purpose of this script is to perform housekeeping on a running vADC cluster:
 # - Remove vADC nodes that aren't in "running" state
@@ -50,12 +50,15 @@ activeIPs="/tmp/activeIPs.$rand_str"
 changeSetF="/tmp/changeSetF.$rand_str"
 
 lockF=/tmp/housekeeper.lock
+leaveLock="0"
 
 cleanup  () {
     rm -f $runningInstF $clusteredInstF $deltaInstF $filesF
     rm -f $resFName $jqResFName
     rm -f $dnsIPs $activeIPs $changeSetF
-    rm -f $lockF
+    if [[ "$leaveLock" = "0" ]]; then
+        rm -f $lockF
+    fi
 }
 
 trap cleanup EXIT
@@ -74,6 +77,7 @@ fi
 
 if [[ -f $lockF ]]; then
     logMsg "001: Found lock file, exiting."
+    leaveLock="1"
     exit 1
 fi
 
@@ -131,58 +135,6 @@ safe_aws () {
     return 0
 }
 
-# Set tag on $myInstanceID
-# $1 = tag
-# $2 = value
-#
-setTag () {
-    logMsg "006: Setting tags on $myInstanceID: \"$1:$2\""
-    safe_aws ec2 create-tags --region $region \
-        --resources $myInstanceID \
-        --tags Key=$1,Value=$2
-    # Check if I can find myself by the newly applied tag
-    declare -a stList
-    unset stList
-    while [[ ${#stList[*]} == 0 ]]; do
-        findTaggedInstances $1 $2
-        stList=( $(cat $jqResFName | grep "$myInstanceID") )
-        logMsg "007: Checking tagged instances \"$1:$2\", expecting to see $myInstanceID; got \"$stList\""
-        if [[ ${#stList[*]} == 1 ]]; then
-            logMsg "008: Found us, we're done."
-        else
-            logMsg "009: Not yet; sleeping for a bit."
-            sleep 3
-        fi
-    done
-    return 0
-}
-
-# Remove tag from $myInstanceID
-# $1 = tag
-# $2 = value (need for success checking)
-#
-delTag () {
-    logMsg "010: Deleting tags: \"$1:$2\""
-    safe_aws ec2 delete-tags --region $region \
-        --resources $myInstanceID \
-        --tags Key=$1
-    # Check if we don't come up when searching for the tag, i.e., tag is gone
-    declare -a stList
-    stList=( blah )
-    while [[ ${#stList[*]} > 0 ]]; do
-        findTaggedInstances $1 $2
-        stList=( $(cat $jqResFName | grep "$myInstanceID") )
-        logMsg "011: Checking tagged instances \"$1:$2\", expecting NOT to see $myInstanceID; got \"$stList\""
-        if [[ ${#stList[*]} == 0 ]]; then
-            logMsg "012: Tag \"$1:$2\" is not there, we're done."
-        else
-            logMsg "013: Not yet; sleeping for a bit."
-            sleep 3
-        fi
-    done
-    return 0
-}
-
 # Returns list of instances with matching tags
 # $1 tag
 # $2 value
@@ -205,61 +157,6 @@ findTaggedInstances () {
     return 0
 }
 
-# function getLock - makes sure we're the only running instance with the
-# $stateTag == Tag passed to us as function parameter
-#
-# $1 & $2 = tag & value to lock on for myInstanceID
-getLock () {
-    declare -a list
-    while true; do
-        list=( blah )
-        # Get a list of instances with $stateTag = $tag other than us
-        # if there are any, wait 5 seconds, then retry until there are none
-        while [[ ${#list[*]} > 0 ]]; do
-            logMsg "014: Looping until there's no instance matching \"$1:$2\""
-            findTaggedInstances $1 $2
-            list=( $(cat $jqResFName | grep -v $myInstanceID) )
-            if [[ ${#list[*]} > 0 ]]; then
-                s_list=$(echo ${list[@]/%/,} | sed -e "s/,$//g")
-                logMsg "015: Found some: \"$s_list\", sleeping..."
-                sleep 5
-            fi
-        done
-        # Do we already have the tag by chance?
-        list=( $(cat $jqResFName | grep "$myInstanceID") )
-        if [[ ${#list[*]} == 1 ]]; then
-            logMsg "016: We already have that tag, returning."
-            return 0
-        fi
-        # once there aren't any, tag ourselves
-        logMsg "017: Tagging ourselves: \"$1:$2\""
-        setTag $1 $2
-        list=( blah )
-        # check if there are other tagged instances who managed to beat us to it
-        while [[ ${#list[*]} > 0 ]]; do
-            findTaggedInstances $1 $2
-            list=( $(cat $jqResFName | grep -v "$myInstanceID") )
-            s_list=$(echo ${list[@]/%/,} | sed -e "s/,$//g")
-            logMsg "018: Looking for others with the same tags, found: \"$s_list\""
-            if [[ ${#list[*]} > 0 ]]; then
-                # there's someone else - clash
-                logMsg "019: Clash detected, calling delTag: \"$1:$2\""
-                delTag $1 $2
-                backoff=$RANDOM
-                let "backoff %= 25"
-                # do random backoff, then bail to the mail while().
-                logMsg "020: Backing off for $backoff seconds"
-                sleep $backoff
-                unset list
-            else
-                # lock obtained; we're done here.
-                logMsg "021: Got our lock, returning."
-                return 0
-            fi
-        done
-    done
-}
-
 # First, do random sleep to avoid race with other cluster nodes, since we're running from cron.
 #
 backoff=$RANDOM
@@ -269,6 +166,13 @@ sleep $backoff
 
 cleanup
 touch $lockF
+
+if [[ -f /tmp/autocluster.sh ]]; then
+    logMsg "023: Found /tmp/autocluster.sh; running it.."
+    /tmp/autocluster.sh > /tmp/autocluster-out.log 2>&1
+    rm -f /tmp/autocluster.sh
+    logMsg "024: /tmp/autocluster.sh finished and removed."
+fi
 
 declare -a list
 
@@ -293,9 +197,9 @@ if [[ "$?" == 0 ]]; then
     done
     unset tmpArray
     s_list=$(echo ${tipArray[@]/%/,} | sed -e "s/,$//g")
-    logMsg "023: Got Traffic IP groups: \"$s_list\""
+    logMsg "025: Got Traffic IP groups: \"$s_list\""
 else
-    logMsg "024: Error getting Traffic IP Groups; perhaps none configured yet"
+    logMsg "026: Error getting Traffic IP Groups; perhaps none configured yet"
 fi
 
 # Iterate over TIP Groups we found; count the total number of TIPs in all of them
@@ -315,9 +219,9 @@ for tipGroup in "${!tipArray[@]}"; do
             let "numTIPs += ${#tipIPArray[*]}"
         fi
         s_list=$(echo ${tipIPArray[@]/%/,} | sed -e "s/,$//g")
-        logMsg "025: Got Traffic IPs for TIP Group \"${tipArray[$tipGroup]}\": \"$s_list\"; numTIPs is now $numTIPs"
+        logMsg "027: Got Traffic IPs for TIP Group \"${tipArray[$tipGroup]}\": \"$s_list\"; numTIPs is now $numTIPs"
     else
-        logMsg "026: Error getting Traffic IPs from TIP Group \"${tipArray[$tipGroup]}\""
+        logMsg "028: Error getting Traffic IPs from TIP Group \"${tipArray[$tipGroup]}\""
     fi
 done
 
@@ -628,7 +532,7 @@ let "m = $maxPIPs - 1"
 maxPIPs=$m
 
 if (( "$numTIPs" > "$maxPIPs" )); then
-    logMsg "027: Asking for more private IPs (${numTIPs}) than our instance type ${instanceType} supports (${maxPIPs}); caping it."
+    logMsg "029: Asking for more private IPs (${numTIPs}) than our instance type ${instanceType} supports (${maxPIPs}); caping it."
     numTIPs="$maxPIPs"
 fi
 
@@ -654,11 +558,11 @@ myPrivateIPs=( $(cat $resFName | \
 # Compare the number of my secondary private IPs with the number of TIPs in my cluster
 if [[ "${#myPrivateIPs[*]}" != "$numTIPs" ]]; then
     # There's a difference; we need to adjust
-    logMsg "028: Need to adjust the number of private IPs. Have: ${#myPrivateIPs[*]}, need: $numTIPs"
+    logMsg "030: Need to adjust the number of private IPs. Have: ${#myPrivateIPs[*]}, need: $numTIPs"
     if (( $numTIPs > ${#myPrivateIPs[*]} )); then
         # Need to add IPs
         let "delta = $numTIPs - ${#myPrivateIPs[*]}"
-        logMsg "029: Adding $delta private IPs to ENI $eniID"
+        logMsg "031: Adding $delta private IPs to ENI $eniID"
         safe_aws ec2 assign-private-ip-addresses \
             --region $region \
             --network-interface-id $eniID \
@@ -677,7 +581,7 @@ if [[ "${#myPrivateIPs[*]}" != "$numTIPs" ]]; then
         let "delta = ${#myPrivateIPs[*]} - $numTIPs"
         # If we need to remove more IPs than we have without EIPs, then only remove those we can
         if (( $delta > ${#myFreePrivateIPs[*]} )); then
-            logMsg "030: Need to delete $delta, but can only do ${#myFreePrivateIPs[*]}; the rest is tied with EIPs."
+            logMsg "032: Need to delete $delta, but can only do ${#myFreePrivateIPs[*]}; the rest is tied with EIPs."
             delta=${#myFreePrivateIPs[*]}
         fi
         for ((i=0; i < $delta; i++)); do
@@ -685,7 +589,7 @@ if [[ "${#myPrivateIPs[*]}" != "$numTIPs" ]]; then
             let "num %= ${#myFreePrivateIPs[*]}"
             ipToDelete=${myFreePrivateIPs[$num]}
             let "j = i + 1"
-            logMsg "031: Deleting IP $j of $delta - $ipToDelete from ENI $eniID"
+            logMsg "033: Deleting IP $j of $delta - $ipToDelete from ENI $eniID"
             # Not using "safe_aws" here; it's OK to fail - we'll just retry the next time round.
             aws ec2 unassign-private-ip-addresses \
                 --region $region \
@@ -694,78 +598,82 @@ if [[ "${#myPrivateIPs[*]}" != "$numTIPs" ]]; then
             sleep 3
         done
     fi
-    logMsg "032: Done adjusting private IPs."
+    logMsg "034: Done adjusting private IPs."
 else
-    logMsg "033: No need to adjust private IPs."
+    logMsg "035: No need to adjust private IPs."
 fi
 
-# Next, do "garbage collection" on the terminated vTM instances, if any
+# Get the cluster master vTM
 #
-findTaggedInstances $housekeeperTag $statusWorking
-list=( $(cat $jqResFName | grep -v $myInstanceID) )
-s_list=$(echo ${list[@]/%/,} | sed -e "s/,$//g")
-logMsg "034: Checking if an other node is already running Housekeeping; got: \"$s_list\""
-if [[ ${#list[*]} > 0 ]]; then
-    logMsg "035: Yep, somebody beat us to it. Exiting."
-    exit 0
-else
-    logMsg "036: Ok, let's get to work."
-fi
+firstWorking=$(curl -s http://localhost:9080/zxtm/flipper/firstworking -H "Commkey: $(cat ${ZEUSHOME}/zxtm/conf/commkey)")
+a=$(readlink -f ${ZEUSHOME}/zxtm/global.cfg)
+thisvTM=${a##*/}
+logMsg "000: Checking if this vTM is the cluster leader. firstWorking = ${firstWorking}; thisvTM = ${thisvTM}"
 
-logMsg "037: Getting lock on $statusWorking.."
-getLock "$housekeeperTag" "$statusWorking"
-
-# List running instances in our vADC cluster
-logMsg "038: Checking running instances.."
-findTaggedInstances
-cat $jqResFName | sort -rn > $runningInstF
-# Sanity check - we should see ourselves in the $jqResFName
-list=( $(cat $jqResFName | grep "$myInstanceID") )
-if [[ ${#list[*]} == 0 ]]; then
-    # LOL WAT
-    logMsg "039: Cant't seem to be able to find ourselves running; did you set ClusterID correctly? I have: \"$clusterID\". Bailing."
-    exit 1
-fi
-
-# Go to cluster config dir, and look for instanceIDs in config files there
-logMsg "040: Checking clustered instances.."
-cd $configDir
-grep -i instanceid * | awk '{print $2}' | sort -rn | uniq > $clusteredInstF
-# Compare the two, looking for lines that are present in the cluster config but missing in running list
-logMsg "041: Comparing list of running and clustered instances.."
-diff $clusteredInstF $runningInstF | awk '/^</ { print $2 }' > $deltaInstF
-# Check if our InstanceId is in the list of running
-# ***************
-
-if [[ -s $deltaInstF ]]; then
-    # There is some delta - $deltaInstF isn't empty
-    declare -a list
-    list=( $(cat $deltaInstF) )
-    s_list=$(echo ${list[@]/%/,} | sed -e "s/,$//g")
-    logMsg "042: Delta detected - need to do clean up the following instances: $s_list."
-    for instId in ${list[@]}; do
-        grep -l "$instId" * >> $filesF 2>/dev/null
-    done
-    if [[ -s $filesF ]]; then
-        svIFS=$IFS
-        IFS=$(echo -en "\n\b")
-        files=( $(cat $filesF) )
-        IFS=$svIFS
-        for file in "${files[@]}"; do
-            logMsg "043: Deleting $file.."
-            rm -f "$file"
-        done
-        logMsg "044: Synchronising cluster state and sleeping to let things settle.."
-        $configSync
-        sleep 60
-        logMsg "045: All done, exiting."
-    else
-        logMsg "046: Hmm, can't find config files with matching instanceIDs; maybe somebody deleted them already. Exiting."
+if [[ "$firstWorking" == "$thisvTM" ]]; then
+    logMsg "This vTM is the cluster leader; running the cleanup job."
+    # Next, do "garbage collection" on the terminated vTM instances, if any
+    #
+    # List running instances in our vADC cluster
+    logMsg "040: Checking running instances.."
+    findTaggedInstances
+    cat $jqResFName | sort -rn > $runningInstF
+    # Sanity check - we should see ourselves in the $jqResFName
+    list=( $(cat $jqResFName | grep "$myInstanceID") )
+    if [[ ${#list[*]} == 0 ]]; then
+        # LOL WAT
+        logMsg "041: Cant't seem to be able to find ourselves running; did you set ClusterID correctly? I have: \"$clusterID\". Bailing."
+        exit 1
     fi
-    delTag "$housekeeperTag" "$statusWorking"
-else
-    logMsg "047: No delta, exiting."
-    delTag "$housekeeperTag" "$statusWorking"
+
+    # Go to cluster config dir, and look for instanceIDs in config files there
+    logMsg "042: Checking clustered instances.."
+    cd $configDir
+    grep -i instanceid * | awk '{print $2}' | sort -rn | uniq > $clusteredInstF
+    # Compare the two, looking for lines that are present in the cluster config but missing in running list
+    logMsg "043: Comparing list of running and clustered instances.."
+    diff $clusteredInstF $runningInstF | awk '/^</ { print $2 }' > $deltaInstF
+
+    # Check if our InstanceId is in the list of running
+    #
+    if [[ -s $deltaInstF ]]; then
+        # There is some delta - $deltaInstF isn't empty
+        declare -a list
+        list=( $(cat $deltaInstF) )
+        s_list=$(echo ${list[@]/%/,} | sed -e "s/,$//g")
+        logMsg "044: Delta detected - need to do clean up the following instances: $s_list."
+        for instId in ${list[@]}; do
+            grep -l "$instId" * >> $filesF 2>/dev/null
+        done
+        if [[ -s $filesF ]]; then
+            svIFS=$IFS
+            IFS=$(echo -en "\n\b")
+            files=( $(cat $filesF) )
+            IFS=$svIFS
+            for file in "${files[@]}"; do
+                logMsg "045: Deleting $file.."
+                rm -f "$file"
+            done
+            logMsg "046: Synchronising cluster state and sleeping to let things settle.."
+            # Create signal file. The traffic manager parent deletes this when its
+            # finished reading the new config
+            touch ${ZEUSHOME}/zxtm/internal/signal
+            # Signal the configd and the traffic manager that we've updated the config
+            if [[ -s ${ZEUSHOME}/zxtm/internal-configd/pid ]]; then
+                kill -HUP $(cat ${ZEUSHOME}/zxtm/internal-configd/pid | awk '{print $1}')
+            fi
+            if [[ -s ${ZEUSHOME}/zxtm/internal/pid ]]; then
+                kill -HUP $(cat ${ZEUSHOME}/zxtm/internal/pid | awk '{print $1}')
+            fi
+            $configSync
+            sleep 30
+            logMsg "047: All done, exiting."
+        else
+            logMsg "048: Hmm, can't find config files with matching instanceIDs; maybe somebody deleted them already. Exiting."
+        fi
+    else
+        logMsg "049: No delta, exiting."
+    fi
 fi
 
 exit 0

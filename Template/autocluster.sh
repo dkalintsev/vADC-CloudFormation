@@ -2,14 +2,12 @@
 #
 # This script is customised during vADC instance deployment by cfn-init
 # Please see example usage in the CloudFormation template:
-# https://github.com/dkalintsev/Brocade/blob/master/vADC/CloudFormation/Templates/Variants-and-experimental/Autoclustering/vADC-Deploy-ASG.template
+# https://github.com/dkalintsev/vADC-CloudFormation/raw/master/Template/vADC-ASG-Puppet.template
 #
 # The purpose of this script is to form a new vADC cluster or join an existing one.
 #
 # We expect the following vars passed in:
 # ClusterID = AWS EC2 tag used to find vADC instances in our cluster
-# AdminPass = AdminPass
-# Region = AWS::Region
 # Verbose = "Yes|No" - this controls whether we print extensive log messages as we go.
 #
 # vADC instances running this script will need to have an IAM Role with the Policy allowing:
@@ -21,9 +19,10 @@ export PATH=$PATH:/usr/local/bin
 logFile="/var/log/autoscluster.log"
 
 clusterID="{{ClusterID}}"
-#adminPass="{{AdminPass}}" # replaced by call to meta-data; whole cluster uses the same password.
+
+# This expects that admin password was passed into UserData without spaces around "="
 adminPass=$(curl -s http://169.254.169.254/latest/user-data | tr " " '\n' | awk -F= '/^pass/ {print $2}')
-#region="{{Region}}" ## Replaced by call to metadata server - see region=$() below
+
 verbose="{{Verbose}}"
 
 # Tags for Cluster and Elections
@@ -39,9 +38,13 @@ statusForming="Forming"
 
 # Random string for /tmp files
 rand_str=$(cat /dev/urandom | env LC_CTYPE=C tr -cd 'a-f0-9' | head -c 10)
+
 resFName="/tmp/aws-out.$rand_str"
 jqResFName="/tmp/jq-out.$rand_str"
-awscliLogF="autocluster-out.log"
+awscliLogF="/var/log/autocluster-out.log"
+
+export ZEUSHOME=/opt/zeus
+selfReg="/opt/zeus/zxtm/bin/self-register"
 
 if [[ "$verbose" == "" ]]; then
     # there's no such thing as too much logging ;)
@@ -283,26 +286,55 @@ runElections () {
     fi
 }
 
+# Attempt to run "$1"; try until successful.
+#
+waitFor () {
+    errCode=1
+    backoff=0
+    retries=0
+    while [[ "$errCode" != "0" ]]; do
+        let "backoff = 2**retries"
+        if (( $retries > 5 )); then
+            # Exceeded retry budget of 5.
+            # Doing random sleep up to 45 sec, then back to try again.
+            backoff=$RANDOM
+            let "backoff %= 45"
+            logMsg "025: waitFor \"$*\" exceeded retry budget. Sleeping for $backoff second(s), then back to work.."
+            sleep $backoff
+            retries=0
+            backoff=1
+        fi
+        $1 >> /tmp/waitFor.log 2>&1
+        errCode=$?
+        if [[ "$errCode" != "0" ]]; then
+            logMsg "026: $1 returned error $errCode; sleeping for $backoff seconds.."
+            sleep $backoff
+            let "retries += 1"
+        fi
+    done
+    return 0
+}
+
 # Join the cluster. Prerequisites for this func:
 # 1. Main loop detected there's an instance in $statusActive
 # 2. $jqResFName has the list of $statusActive instances
 #
 joinCluster () {
-    logMsg "025: Starting cluster join.."
+    logMsg "027: Starting cluster join.."
     declare -a jList
     # Are there instances where $stateTag == $statusActive?
     # There should be since this is how we got here, but let's make double sure.
     # Main loop already did findTaggedInstances, so let's reuse result.
     jList=( $(cat $jqResFName) )
-    logMsg "026: Getting lock on $stateTag $statusJoining"
+    logMsg "028: Getting lock on $stateTag $statusJoining"
     getLock "$stateTag" "$statusJoining"
     num=$RANDOM
     let "num %= ${#jList[*]}"
     instanceToJoin=${jList[$num]}
     getInstanceIP $instanceToJoin
     node=$(cat $jqResFName)
-    logMsg "027: Picked the node to join: \"$node\""
-    logMsg "028: Creating and running cluster join script"
+    logMsg "029: Picked the node to join: \"$node\""
+    logMsg "030: Creating and running cluster join script"
     # doing join
     tmpf="/tmp/dojoin.$rand_str"
     rm -f $tmpf
@@ -346,27 +378,35 @@ MAIN: {
 }
 EOF
     chmod +x $tmpf
-    sleep 30
+
+    # No point trying to join the cluster if node isn't ready
+    waitFor "curl -s -k -u admin:${adminPass} https://${node}:9090"
+
     $tmpf >> $awscliLogF 2>&1
     if [[ "$?" != "0" ]]; then
-        logMsg "029: Some sort of error happened, let's keep trying.."
+        logMsg "031: Some sort of error ($?) happened attempting to join the cluster, let's keep trying.."
         rm -f $tmpf
         return 1
     else
-        logMsg "030: Join operation successful, returning to the main loop."
+        logMsg "032: Join operation successful, returning to the main loop."
         rm -f $tmpf
         return 0
     fi
 }
 
+# We should not start doing anything if vTM isn't in a running state.
+# Let's check it by seeing if /opt/zeus/log/errors exists and isn't empty -
+# it's created when vTM software starts. We'll wait util it's so.
+#
+waitFor "test -s /opt/zeus/log/errors"
+
 # Sanity check: can we find ourselves in "running" state?
 #
-
 findTaggedInstances
 declare -a stList
 stList=( $(cat $jqResFName | grep "$myInstanceID") )
 if [[ ${#stList[*]} == 0 ]]; then
-    logMsg "031: Cant't seem to be able to find ourselves running; did you set ClusterID correctly? I have: \"$clusterID\". Bailing."
+    logMsg "033: Cant't seem to be able to find ourselves running; did you set ClusterID correctly? I have: \"$clusterID\". Bailing."
     exit 1
 fi
 
@@ -376,15 +416,15 @@ findTaggedInstances $stateTag $statusActive
 declare -a list
 list=( $(cat $jqResFName | grep $myInstanceID) )
 s_list=$(echo ${list[@]/%/,} | sed -e "s/,$//g")
-logMsg "032: Checking if we are already $statusActive; got: \"$s_list\""
+logMsg "034: Checking if we are already $statusActive; got: \"$s_list\""
 if [[ ${#list[*]} > 0 ]]; then
-    logMsg "033: Looks like we've nothing more to do; exiting."
+    logMsg "035: Looks like we've nothing more to do; exiting."
     exit 0
 else
-    logMsg "034: Welp, we've got work to do."
+    logMsg "036: Welp, we've got work to do."
 fi
 
-logMsg "035: Entering main loop.."
+logMsg "037: Entering main loop.."
 while true; do
     # Main loop
     declare -a list
@@ -392,25 +432,34 @@ while true; do
     findTaggedInstances $stateTag $statusActive
     list=( $(cat $jqResFName) )
     s_list=$(echo ${list[@]/%/,} | sed -e "s/,$//g")
-    logMsg "036: Checking for $statusActive vTMs; got: \"$s_list\""
+    logMsg "038: Checking for $statusActive vTMs; got: \"$s_list\""
     if [[ ${#list[*]} > 0 ]]; then
-        logMsg "037: There are active node(s), starting join process."
+        logMsg "039: There are active node(s), starting join process."
         joinCluster
         if [[ "$?" == "0" ]]; then
-            logMsg "038: Join successful, setting ourselves $statusActive.."
+            logMsg "040: Join successful, setting ourselves $statusActive.."
             setTag "$stateTag" "$statusActive"
+            # Check if vTM is configured for Services Director self-registration
+            grep -q 'remote_licensing!registration_server' /opt/zeus/zxtm/conf/settings.cfg
+            if [[ "$?" == "0" ]]; then
+                # If it is, then we (re)run self-registration request
+                #
+                logMsg "041: Running ${selfReg}"
+                cd /opt/zeus/zxtm/bin
+                waitFor "${selfReg}"
+            fi
             exit 0
         else
-            logMsg "039: Join failed; returning to the main loop."
+            logMsg "042: Join failed; returning to the main loop."
         fi
     else
-        logMsg "040: No active cluster members; starting elections"
+        logMsg "043: No active cluster members; starting elections"
         runElections
         if [[ "$?" == "0" ]]; then
-            logMsg "041: Won elections, we're done here."
+            logMsg "044: Won elections, we're done here."
             exit 0
         else
-            logMsg "042: Lost elections; returning to the main loop."
+            logMsg "045: Lost elections; returning to the main loop."
         fi
     fi
 done

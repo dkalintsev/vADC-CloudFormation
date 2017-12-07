@@ -233,7 +233,6 @@
 
     "vADCPuppetModuleVersion" : {
       "PMVers": {
-        "111":   " '>=1.310.0 < 1.311.0' ",
         "171":   " '>=1.311.0 < 1.400.0' ",
         "172":   " '>=1.400.0 < 1.500.0' ",
         "173":   " '>=1.500.0 < 1.501.0' ",
@@ -700,7 +699,7 @@
           "CreateFiles" : {
             "files" : {
               "/tmp/autocluster.sh" : {
-                "source": "https://raw.githubusercontent.com/dkalintsev/vADC-CloudFormation/master/Template/autocluster.sh",
+                "source": "https://raw.githubusercontent.com/dkalintsev/vADC-CloudFormation/SD-dev/Template/autocluster.sh",
                 "context": {
                   "ClusterID": { "Fn::Join": [ "-", [
                     { "Ref": "AWS::StackName" },
@@ -712,7 +711,7 @@
                 "owner": "root"
               },
               "/tmp/housekeeper.sh" : {
-                "source": "https://raw.githubusercontent.com/dkalintsev/vADC-CloudFormation/17.4/Template/housekeeper.sh",
+                "source": "https://raw.githubusercontent.com/dkalintsev/vADC-CloudFormation/SD-dev/Template/housekeeper.sh",
                 "context": {
                   "ClusterID": { "Fn::Join": [ "-", [
                     { "Ref": "AWS::StackName" },
@@ -741,7 +740,7 @@
                   "mkdir -p /opt/aws\n",
                   "mv /tmp/housekeeper.sh /opt/aws/\n",
                   "rm -f /tmp/ctab.txt\n",
-                  "echo \"*/5 * * * * /opt/aws/housekeeper.sh > /var/log/housekeeper-out.log 2>&1\" > /tmp/ctab.txt\n",
+                  "echo \"*/2 * * * * /opt/aws/housekeeper.sh > /var/log/housekeeper-out.log 2>&1\" > /tmp/ctab.txt\n",
                   "exit 0\n",
                   "\n"
                 ]]},
@@ -762,14 +761,6 @@
                 "command" : "rm -f /tmp/setup_stuff.sh"
               },
 
-              "03-run_autocluster" : {
-                "command" : "/tmp/autocluster.sh > /tmp/autocluster-out.log 2>&1"
-              },
-
-              "04-del_autocluster_script" : {
-                "command" : "rm -f /tmp/autocluster.sh"
-              },
-
               "05-add_crontab" : {
                 "command" : "crontab /tmp/ctab.txt"
               },
@@ -778,13 +769,9 @@
                 "command" : "rm -f /tmp/ctab.txt"
               },
 
-              "07-run_housekeeper_once" : {
-                "command" : "/opt/aws/housekeeper.sh > /var/log/housekeeper-out.log 2>&1"
-              },
-
               "99-wait_1_min_then_signal_that_we_are_done" : {
                 "command" : { "Fn::Join" : [ "", [
-                  "sleep 60 && /usr/local/bin/cfn-signal -e 0 ",
+                  "/usr/local/bin/cfn-signal -e 0 ",
                   "-d https://$(curl http://169.254.169.254/latest/meta-data/public-ipv4):9090 ",
                   "'",
                   { "Ref" : "WaitHandle01" },
@@ -1043,7 +1030,7 @@
           "\n",
           "apt-get install python-pip -y\n",
           "pip install https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-latest.tar.gz\n",
-          "pip install awscli --upgrade",
+          "pip install awscli --upgrade\n",
           "apt-get install jq -y\n",
 
           "/usr/local/bin/cfn-init -v ",
@@ -1053,7 +1040,7 @@
           "sleep 60\n",
           "cd /root\n",
           "rm -f crtab.txt\n",
-          "echo \"*/5 * * * * /root/puppet-apply.sh > /var/log/puppet-apply-out.log 2>&1\" > crtab.txt\n",
+          "echo \"*/3 * * * * /root/puppet-apply.sh > /var/log/puppet-apply-out.log 2>&1\" > crtab.txt\n",
           "crontab crtab.txt\n",
           "rm -f crtab.txt\n"
         ]]}}

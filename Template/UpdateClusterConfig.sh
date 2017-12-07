@@ -14,7 +14,7 @@
 #
 # logMsg uses "nnn: <message>" format, where "nnn" is sequential. If you end up
 # adding or removing logMsg calls in this script, run the following command to re-apply
-# the sequence (replace "_" with space after logMsg):
+# the sequence (replace "_" with a space after logMsg):
 #
 # perl -i -000pe 's/(logMsg_")(...)/$1 . sprintf("%03d", ++$n)/ge' UpdateClusterConfig.sh
 #
@@ -25,7 +25,6 @@ export PATH=$PATH:/usr/local/bin
 logFile="/var/log/UpdateClusterConfig.log"
 
 clusterID="{{ClusterID}}"
-#region="{{Region}}" ## Replaced by call to metadata server - see region=$() below
 verbose="{{Verbose}}"
 pool="{{Pool}}"
 pool_tag="{{PoolTag}}"
@@ -41,8 +40,13 @@ changeSetF="/tmp/changeSetF.$rand_str"
 # Variables
 #
 lockF="/tmp/UpdateClusterConfig.lock"
+leaveLock="0"
+
 left_in="{\"node\":\""
+
+# Nodes in our template listen on port 80; customise if yours aren't
 right_in=":80\",\"priority\":1,\"state\":\"active\",\"weight\":1}"
+
 work_dir="/root"
 manifest_template="$work_dir/cluster-config-template.pp"
 manifest="$work_dir/cluster-config.pp"
@@ -58,7 +62,9 @@ statusActive="Active"
 cleanup  () {
     rm -f $resFName $jqResFName
     rm -f $changeSetF
-    rm -f $lockF
+    if [[ "$leaveLock" = "0" ]]; then
+        rm -f $lockF
+    fi
 }
 
 trap cleanup EXIT
@@ -77,6 +83,7 @@ fi
 
 if [[ -f $lockF ]]; then
     logMsg "001: Found lock file, exiting."
+    leaveLock="1"
     exit 1
 fi
 
@@ -176,7 +183,11 @@ touch $lockF
 # Saving SHA checksum of our original $manifest for later checking
 # There could be no original $manifest, which is fine too. :)
 #
-oldsha=$(shasum "$manifest" | awk '{print $1}')
+if [[ -s "$manifest" ]]; then
+    oldsha=$(shasum "$manifest" | awk '{print $1}')
+else
+    oldsha="0"
+fi
 
 # We need to customise cluster-config-template with the following values:
 # - __vADC1PrivateIP__ => a private IP of one of the vADCs in the cluster (with tag "Active")
@@ -227,10 +238,14 @@ pass=$(grep rest_pass $manifest_template | cut -f2 -d\')
 # First, get the latest API version supported by this vADC.
 # List all endpoints and get the last one, e.g. "/api/tm/5.0/"
 #
-endpoint=$(curl -s -u ${login}:${pass} -k https://$vADC1PrivateIP:9070/api/tm | jq -r ".children[].href" | sort | tail -1)
+endpoint=$(curl -s -u ${login}:${pass} -k https://$vADC1PrivateIP:9070/api/tm \
+    | jq -r ".children[].href" \
+    | sort \
+    | tail -1)
 #
 # Next, talk to the cluster on the API endpoint we've discovered:
-list=( $( curl -s -u ${login}:${pass} -k https://$vADC1PrivateIP:9070${endpoint}config/active/traffic_managers/ -o - | jq '.children[].name' ) )
+list=( $( curl -s -u ${login}:${pass} -k https://$vADC1PrivateIP:9070${endpoint}config/active/traffic_managers/ \
+    | jq '.children[].name' ) )
 
 for instance in ${list[@]}; do
     if [[ "${list[@]: -1}" != "$instance" ]]; then
@@ -243,6 +258,8 @@ done
 if [[ "$vADCnDNS" == "" ]]; then
     logMsg "009: Failed to get vTM names; bailing for now."
     exit 0
+else
+    logMsg "010: Got a list of vTMs for the Traffic IP group: ${vADCnDNS}"
 fi
 
 # We need to collect private IPs of the pool members. They are tagged with "Name" == $pool_tag
@@ -251,7 +268,7 @@ fi
 findTaggedInstances "Name" $pool_tag
 list=( $(cat $jqResFName | sort -rn) )
 s_list=$(echo ${list[@]/%/,} | sed -e "s/,$//g")
-logMsg "010: Looking for running instances tagged with $pool_tag; got: \"$s_list\""
+logMsg "011: Looking for running instances tagged with $pool_tag; got: \"$s_list\""
 
 # Now, let's walk through the resulting list and create a Puppet manifest definition for the pool
 #
@@ -261,14 +278,14 @@ nodes=""
 
 if [[ ${#list[*]} == 0 ]]; then
     # Didn't find any running backend pool members; let's set our pool to 127.0.0.1
-    logMsg "011: Didn't find any running backend pool instances; will set the pool to 127.0.0.1:80"
+    logMsg "012: Didn't find any running backend pool instances; will set the pool to 127.0.0.1:80"
     nodes="$left_in""127.0.0.1""$right_in"
 else
     for instance in ${list[@]}; do
         # "for" loop here is good enough since we don't expect any spaces in the array elements
         getInstanceIP $instance
         IP=$(cat $jqResFName)
-        logMsg "012: Private IP of Instance $instance is $IP"
+        logMsg "013: Private IP of Instance $instance is $IP"
         a="$left_in""$IP""$right_in"
         if [[ "${list[@]: -1}" != "$instance" ]]; then
             nodes="$nodes""$a"","
@@ -292,12 +309,6 @@ cat "$manifest_template" | awk 1 ORS="|" \
   | sed -e "s/__vADCnDNS__/$vADCnDNS/g" \
   | tr '|' '\n' > "$changeSetF"
 
-# Old sed command; was found to be defective when dealing with multiple pools
-# due to sed's greedy regex match :( Replaced with perl above. Kept JIC.
-#
-#  | sed -e "s/\(.*brocadevtm::pools { '$pool':.*basic__nodes_table                       => '\)\(\[[^]]*\]\)\(.*\)/\1\[$nodes\]\3/g" \
-
-
 # Some awk versions add an extra \n to the end of file.
 # Let's deal with that:
 #
@@ -311,17 +322,17 @@ fi
 if [[ -s "$changeSetF" ]]; then
     cat "$changeSetF" > "$manifest"
 else
-    logMsg "013: Edit resulted in an empty file for some reason. Not creating $manifest."
+    logMsg "014: Edit resulted in an empty file for some reason. Not creating $manifest."
     exit 1
 fi
 
 newsha=$(shasum "$manifest" | awk '{print $1}')
 
 if [[ "$newsha" != "$oldsha" ]]; then
-    logMsg "014: File changed; need to update"
+    logMsg "015: File changed; need to update"
     # Yeah, I know - error code "10" is arbitrary. Let me know if you have a better idea.
     exit 10
 else
-    logMsg "015: No changes needed."
+    logMsg "016: No changes needed."
     exit 0
 fi
