@@ -312,8 +312,12 @@ cat "$manifest_template" | awk 1 ORS="|" \
 # Some awk versions add an extra \n to the end of file.
 # Let's deal with that:
 #
-man_len=$(wc -l "$manifest" | awk '{print $1}')
 tmp_len=$(wc -l "$changeSetF" | awk '{print $1}')
+if [[ -s "$manifest" ]]; then
+    man_len=$(wc -l "$manifest" | awk '{print $1}')
+else
+    man_len=tmp_len
+fi
 if (( tmp_len == man_len+1 )); then
     # Yep, we're dealing with one of those; let's fix it.
     sed -i -e '$d' "$changeSetF"

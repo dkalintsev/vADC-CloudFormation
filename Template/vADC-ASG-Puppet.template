@@ -983,7 +983,7 @@
                   "cd /root\n",
                   "/root/UpdateClusterConfig.sh\n",
                   "if [[ \"$?\" == \"10\" && -f cluster-config.pp ]]; then\n",
-                  "  puppet apply cluster-config.pp > /var/log/puppet-out.log 2>&1\n",
+                  "  puppet apply cluster-config.pp >> /var/log/puppet-out.log 2>&1\n",
                   "  if [[ \"$?\" != \"0\" ]]; then\n",
                   "    echo \"Something went wrong with puppet run at $(date)\" >> /root/puppetrun.log\n",
                   "    exit 1\n",
@@ -1040,7 +1040,7 @@
           "sleep 60\n",
           "cd /root\n",
           "rm -f crtab.txt\n",
-          "echo \"*/3 * * * * /root/puppet-apply.sh > /var/log/puppet-apply-out.log 2>&1\" > crtab.txt\n",
+          "echo \"*/3 * * * * /root/puppet-apply.sh >> /var/log/puppet-apply-out.log 2>&1\" > crtab.txt\n",
           "crontab crtab.txt\n",
           "rm -f crtab.txt\n"
         ]]}}
