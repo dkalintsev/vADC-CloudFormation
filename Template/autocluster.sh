@@ -16,7 +16,7 @@
 # - ec2:DeleteTags
 #
 export PATH=$PATH:/usr/local/bin
-logFile="/var/log/autoscluster.log"
+logFile="/var/log/autocluster.log"
 
 clusterID="{{ClusterID}}"
 
