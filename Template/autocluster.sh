@@ -447,6 +447,9 @@ while true; do
                 logMsg "041: Running ${selfReg}"
                 cd /opt/zeus/zxtm/bin
                 waitFor "${selfReg}"
+                # In case the first attempt has failed - doesn't hurt to try again.
+                sleep 60
+                waitFor "${selfReg}"
             fi
             exit 0
         else
