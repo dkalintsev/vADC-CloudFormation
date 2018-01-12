@@ -95,6 +95,9 @@ You can also launch this template into the `us-east-1` region by clicking the "L
 
 ## Q&A
 
+**Q**: My deployment in eu-west-3 region fails during creation of vADC AutoScaling Group, saying "The requested configuration currently unsupported".
+**A**: You probably chose of the instance types unavailable in the France region (e.g., m4.*). Please open "Launch EC2 instance" wizard in the AWS Console, search "Pulse" in the Marketplace, and select "Pulse Secure Virtual Traffic Manager Developer & BYOL Edition". At the Step 2, "Choose an Instance Type", you will see all instance types available in the region that are compatible with vADC AMI.
+
 **Q**: My deployment sits forever at *"CREATE\_IN\_PROGRESS"* of vADC instances, then fails and rolls back. In the "Status reason" of CloudFormation "Events" log I see a message similar to *"In order to use this AWS Marketplace product you need to accept terms and subscribe. To do so please visit http://aws.amazon.com/marketplace/pp?sku=30zvsq8o1jmbp6jvzis0wfgdt"* against the vADC1 AWS::EC2::Instance.  
 **A**: You haven't subscribed to Pulse vADC software through the AWS Marketplace yet. Please visit the link CloudFormation has shown (which may be different from the one above), which will take you to the step #4 in the subscription instructions above the Q&A. Once subscribed, select "Delete Stack", and try deploying again. Please note that there are many SKUs available; so make sure you subscribe to the one that your template is trying to deploy. The easiest way to get to the right one is to visit the URL that CloudFormation tells you in the error message. :)
 
