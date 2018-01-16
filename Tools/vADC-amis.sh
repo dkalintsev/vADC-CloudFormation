@@ -35,6 +35,14 @@ SKU='STM-DEV'
 #
 Versions='4'
 #
+# Edit VerList to output specific set of versions. Comment it out to output
+# just the latest ${Versions} number of versions found.
+# Note: if ${VerList} is specified, it overrides ${Versions}, i.e., if you
+# specify say 6 versions in ${VerList} and ${Versions} is set to 4, this
+# script will output 6 AMIs, not 4.
+#
+VerList='104r2 172r1 173 174'
+#
 OPTIND=1
 force=0
 prof=""
@@ -119,7 +127,11 @@ for i in $(seq 0 $pos); do
     fi
 done
 
-versions=( $(cat ${cachedir}/vADC-amis_*_txt | awk -F: '{print $1}' | sort -n | uniq | tail -"$Versions") )
+if [[ "${VerList}" != "" ]]; then
+    versions=( $(echo ${VerList}) )
+else
+    versions=( $(cat ${cachedir}/vADC-amis_*_txt | awk -F: '{print $1}' | sort -n | uniq | tail -"$Versions") )
+fi
 pos1=$(( ${#versions[*]} - 1 ))
 
 printf "\n\nCut and paste the output below into your CloudFormation template:\n"
