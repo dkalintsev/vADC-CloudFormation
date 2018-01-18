@@ -230,7 +230,7 @@
       "us-east-2" : { "104r2" : "ami-f9ffd49c", "172r1" : "ami-2dfdd648", "173" : "ami-d4e2c3b1", "174" : "ami-1e765a7b" },
       "us-west-1" : { "104r2" : "ami-817070e1", "172r1" : "ami-1b6e6e7b", "173" : "ami-6be4cb0b", "174" : "ami-70467410" },
       "us-west-2" : { "104r2" : "ami-352e844d", "172r1" : "ami-fa2a8082", "173" : "ami-5e2b3827", "174" : "ami-7430f60c" }
-    }
+    },
 
     "vADCPuppetModuleVersion" : {
       "PMVers": {
