@@ -120,4 +120,4 @@ You can also launch this template into the `us-east-1` region by clicking the "L
 **A**: This template is considered "experimental/unofficial", but I encourage you to open GitHub issues and/or submit pull requests as you see fit, and I'll deal with them when I can. This will also help us determine whether there's enough interest in a template, so that we can make it official/supported.
 
 **Q**: Can I modify/reuse this?  
-**A**: This repo is Creative Commons, so you can use what you find here in whichever way you see fit, with or without credit.
+**A**: You can use what you find here in whichever way you see fit, with or without credit.
