@@ -383,8 +383,9 @@ EOF
     waitFor "curl -s -k -u admin:${adminPass} https://${node}:9090"
 
     $tmpf >> $awscliLogF 2>&1
-    if [[ "$?" != "0" ]]; then
-        logMsg "031: Some sort of error ($?) happened attempting to join the cluster, let's keep trying.."
+    errCode="$?"
+    if [[ "$errCode" != "0" ]]; then
+        logMsg "031: Some sort of error ($errCode) happened attempting to join the cluster, let's keep trying.."
         rm -f $tmpf
         return 1
     else
