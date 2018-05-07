@@ -41,7 +41,7 @@ Versions='4'
 # specify say 6 versions in ${VerList} and ${Versions} is set to 4, this
 # script will output 6 AMIs, not 4.
 #
-VerList='104r2 172r1 173 174'
+VerList='104r2 172r2 173 174 181'
 #
 OPTIND=1
 force=0

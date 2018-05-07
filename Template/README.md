@@ -73,7 +73,7 @@ When generating your own manifest, please make sure to give `-v` parameter the R
 
 - Template doesn't add a license key or link your cluster to a Services Director.
 
-- Tested with vADC version 11.1, 17.1, 17.2, 17.3, and 17.4. Please let me know if you hit problems.
+- Tested with vADC version 17.2r2, 17.3, 17.4, and 18.1. Please let me know if you hit problems.
 
 ## How to use
 

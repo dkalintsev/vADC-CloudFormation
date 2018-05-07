@@ -98,12 +98,12 @@
     "vADCVers" : {
       "Description" : "Please select vADC version:",
       "Type" : "String",
-      "Default" : "174",
+      "Default" : "181",
       "AllowedValues" : [
-        "104r2",
-        "172r1",
+        "172r2",
         "173",
-        "174"
+        "174",
+        "181"
       ],
       "ConstraintDescription" : "Must be a valid vADC version"
     },
@@ -215,21 +215,21 @@
   "Mappings" : {
 
     "vADCAMI" : {
-      "ap-south-1" : { "104r2" : "ami-bf4f1bd0", "172r1" : "ami-484e1a27", "173" : "ami-8fc9b7e0", "174" : "ami-052c6f6a" },
-      "eu-west-3" : { "104r2" : "ami-d11aadac", "172r1" : "ami-ce1bacb3", "173" : "ami-aae156d7", "174" : "ami-abc671d6" },
-      "eu-west-2" : { "104r2" : "ami-b2fee6d6", "172r1" : "ami-fefde59a", "173" : "ami-bccfd9d8", "174" : "ami-24beac40" },
-      "eu-west-1" : { "104r2" : "ami-51ea7c28", "172r1" : "ami-e2e97f9b", "173" : "ami-352fce4c", "174" : "ami-0eed3f77" },
-      "ap-northeast-2" : { "104r2" : "ami-44cb6b2a", "172r1" : "ami-88cb6be6", "173" : "ami-9fbf61f1", "174" : "ami-16fb5e78" },
-      "ap-northeast-1" : { "104r2" : "ami-ba69f5dc", "172r1" : "ami-631a8605", "173" : "ami-f61e0191", "174" : "ami-3027f856" },
-      "sa-east-1" : { "104r2" : "ami-eec78482", "172r1" : "ami-bec784d2", "173" : "ami-0b7f0a67", "174" : "ami-704c321c" },
-      "ca-central-1" : { "104r2" : "ami-c4e461a0", "172r1" : "ami-aada5fce", "173" : "ami-ec7ac588", "174" : "ami-97f24af3" },
-      "ap-southeast-1" : { "104r2" : "ami-41eb9d3d", "172r1" : "ami-44d2a438", "173" : "ami-1abb3179", "174" : "ami-7e077c1d" },
-      "ap-southeast-2" : { "104r2" : "ami-7622d014", "172r1" : "ami-c63dcfa4", "173" : "ami-a1ccdec2", "174" : "ami-311dff53" },
-      "eu-central-1" : { "104r2" : "ami-c8f261a7", "172r1" : "ami-c6f063a9", "173" : "ami-d66fcfb9", "174" : "ami-1577c87a" },
-      "us-east-1" : { "104r2" : "ami-a6c696dc", "172r1" : "ami-85f2a2ff", "173" : "ami-268c8930", "174" : "ami-cdea22b7" },
-      "us-east-2" : { "104r2" : "ami-f9ffd49c", "172r1" : "ami-2dfdd648", "173" : "ami-d4e2c3b1", "174" : "ami-1e765a7b" },
-      "us-west-1" : { "104r2" : "ami-817070e1", "172r1" : "ami-1b6e6e7b", "173" : "ami-6be4cb0b", "174" : "ami-70467410" },
-      "us-west-2" : { "104r2" : "ami-352e844d", "172r1" : "ami-fa2a8082", "173" : "ami-5e2b3827", "174" : "ami-7430f60c" }
+      "ap-south-1" : { "104r2" : "ami-bf4f1bd0", "172r2" : "ami-94e5c5fb", "173" : "ami-8fc9b7e0", "174" : "ami-052c6f6a", "181" : "ami-bbe3c3d4" },
+      "eu-west-3" : { "104r2" : "ami-d11aadac", "172r2" : "ami-69972614", "173" : "ami-aae156d7", "174" : "ami-abc671d6", "181" : "ami-2bbd0c56" },
+      "eu-west-2" : { "104r2" : "ami-b2fee6d6", "172r2" : "ami-01f71566", "173" : "ami-bccfd9d8", "174" : "ami-24beac40", "181" : "ami-bde90bda" },
+      "eu-west-1" : { "104r2" : "ami-51ea7c28", "172r2" : "ami-47c7ef3e", "173" : "ami-352fce4c", "174" : "ami-0eed3f77", "181" : "ami-82c5edfb" },
+      "ap-northeast-2" : { "104r2" : "ami-44cb6b2a", "172r2" : "ami-e86ec786", "173" : "ami-9fbf61f1", "174" : "ami-16fb5e78", "181" : "ami-1c6ec772" },
+      "ap-northeast-1" : { "104r2" : "ami-ba69f5dc", "172r2" : "ami-7fa84400", "173" : "ami-f61e0191", "174" : "ami-3027f856", "181" : "ami-a658b5d9" },
+      "sa-east-1" : { "104r2" : "ami-eec78482", "172r2" : "ami-35bfed59", "173" : "ami-0b7f0a67", "174" : "ami-704c321c", "181" : "ami-abbeecc7" },
+      "ca-central-1" : { "104r2" : "ami-c4e461a0", "172r2" : "ami-66d25202", "173" : "ami-ec7ac588", "174" : "ami-97f24af3", "181" : "ami-cad050ae" },
+      "ap-southeast-1" : { "104r2" : "ami-41eb9d3d", "172r2" : "ami-ed6f4491", "173" : "ami-1abb3179", "174" : "ami-7e077c1d", "181" : "ami-136b406f" },
+      "ap-southeast-2" : { "104r2" : "ami-7622d014", "172r2" : "ami-31fb2f53", "173" : "ami-a1ccdec2", "174" : "ami-311dff53", "181" : "ami-8ff92ded" },
+      "eu-central-1" : { "104r2" : "ami-c8f261a7", "172r2" : "ami-3bc9e9d0", "173" : "ami-d66fcfb9", "174" : "ami-1577c87a", "181" : "ami-a0c7e74b" },
+      "us-east-1" : { "104r2" : "ami-a6c696dc", "172r2" : "ami-e9813a96", "173" : "ami-268c8930", "174" : "ami-cdea22b7", "181" : "ami-5b8b3024" },
+      "us-east-2" : { "104r2" : "ami-f9ffd49c", "172r2" : "ami-02ad9f67", "173" : "ami-d4e2c3b1", "174" : "ami-1e765a7b", "181" : "ami-4eac9e2b" },
+      "us-west-1" : { "104r2" : "ami-817070e1", "172r2" : "ami-ad706fcd", "173" : "ami-6be4cb0b", "174" : "ami-70467410", "181" : "ami-5f716e3f" },
+      "us-west-2" : { "104r2" : "ami-352e844d", "172r2" : "ami-f5493d8d", "173" : "ami-5e2b3827", "174" : "ami-7430f60c", "181" : "ami-a74d39df" }
     },
 
     "vADCPuppetModuleVersion" : {
@@ -237,7 +237,8 @@
         "104r2": " '>=1.38.0 < 1.39.0' ",
         "172r1": " '>=1.400.0 < 1.500.0' ",
         "173":   " '>=1.500.0 < 1.501.0' ",
-        "174":   " '>=1.501.0 < 1.502.0' "
+        "174":   " '>=1.501.0 < 1.502.0' ",
+        "181":   " '>=1.501.0 < 1.502.0' "
       }
     },
 
