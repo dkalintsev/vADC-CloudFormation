@@ -550,7 +550,7 @@
             "IpProtocol": "tcp",
             "FromPort": "9070",
             "ToPort": "9070",
-            "CidrIp": { "Ref": "VPCCIDR" }
+            "CidrIp": { "Ref": "RemoteAccessCIDR" }
           },
           {
             "IpProtocol": "tcp",
@@ -666,6 +666,7 @@
     "vADCGroup": {
       "Type": "AWS::AutoScaling::AutoScalingGroup",
       "Properties": {
+        "AutoScalingGroupName" : { "Fn::Join": [ "-", [ { "Ref": "AWS::StackName" }, "vADCASG" ] ] },
         "Tags": [
           {
             "Key": "Name",
@@ -922,6 +923,7 @@
     "PuppetASG": {
       "Type": "AWS::AutoScaling::AutoScalingGroup",
       "Properties": {
+        "AutoScalingGroupName" : { "Fn::Join": [ "-", [ { "Ref": "AWS::StackName" }, "PuppetASG" ] ] },
         "DesiredCapacity": "1",
         "LaunchConfigurationName": {
           "Ref": "PuppetLaunchConfig"
@@ -1171,6 +1173,7 @@
     "WebServerGroup": {
       "Type": "AWS::AutoScaling::AutoScalingGroup",
       "Properties": {
+        "AutoScalingGroupName" : { "Fn::Join": [ "-", [ { "Ref": "AWS::StackName" }, "WebASG" ] ] },
         "Tags": [
           {
             "Key": "Name",
