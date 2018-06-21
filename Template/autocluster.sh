@@ -42,6 +42,7 @@ rand_str=$(cat /dev/urandom | env LC_CTYPE=C tr -cd 'a-f0-9' | head -c 10)
 resFName="/tmp/aws-out.$rand_str"
 jqResFName="/tmp/jq-out.$rand_str"
 awscliLogF="/var/log/autocluster-out.log"
+waitForCmdF="/tmp/waitFor-cmd.$rand_str"
 
 export ZEUSHOME=/opt/zeus
 selfReg="/opt/zeus/zxtm/bin/self-register"
@@ -53,6 +54,7 @@ fi
 
 cleanup  () {
     rm -f $resFName $jqResFName
+    rm -f $waitForCmdF
 }
 
 trap cleanup EXIT
@@ -262,6 +264,99 @@ getLock () {
     done
 }
 
+# Attempt to run $waitForCmdF as a script; try until successful.
+# $1 = friendly name for the command being run
+#
+waitFor () {
+    errCode=1
+    backoff=0
+    retries=0
+    chmod +x $waitForCmdF
+    while [[ "$errCode" != "0" ]]; do
+        let "backoff = 2**retries"
+        if (( $retries > 5 )); then
+            # Exceeded retry budget of 5.
+            # Doing random sleep up to 45 sec, then back to try again.
+            backoff=$RANDOM
+            let "backoff %= 45"
+            logMsg "025: waitFor \"$1\" exceeded retry budget. Sleeping for $backoff second(s), then back to work.."
+            sleep $backoff
+            retries=0
+            backoff=1
+        fi
+        $waitForCmdF >> /tmp/waitFor.log 2>&1
+        errCode=$?
+        if [[ "$errCode" != "0" ]]; then
+            logMsg "026: $1 returned error $errCode; sleeping for $backoff seconds.."
+            sleep $backoff
+            let "retries += 1"
+        fi
+    done
+    return 0
+}
+
+updateRemoteLicensingKeys () {
+    # This function expects that the following keys have been set in the
+    # EC2 UserData, which will then map to the REST API call parameters:
+    #
+    # UserData -> REST Param:
+    # "owner" -> "owner"
+    # "owner_secret" -> "owner_secret"
+    # "not_sd_address" -> "registration_server" <= NOTE the "not_" in front;
+    # +                                            this is to stop automatic
+    # +                                            self-register on deploy
+    # "sd_cert" -> "server_certificate"
+    # "registration_policy" -> "policy_id"
+    #
+    # We extract values for these keys, and build a REST API call to configure
+    # the vTM we're on (this should be the first vTM in the cluster).
+
+    userData=$(curl -s http://169.254.169.254/latest/user-data | tr " " '\n')
+
+    myOwner=$(echo "$userData" | awk -F= '/^owner=/ {print $2}' | tr -d \")
+    myOwnerSecret=$(echo "$userData" | awk -F= '/^owner_secret=/ {print $2}' | tr -d \")
+    mySdAddress=$(echo "$userData" | awk -F= '/^not_sd_address=/ {print $2}' | tr -d \")
+    myRegPolicy=$(echo "$userData" | awk -F= '/^registration_policy=/ {print $2}' | tr -d \")
+
+    # Cert has "=" signs in it, so can't do as above. ;)
+    mySdCert=$(echo "$userData" | awk '/^sd_cert=/ {print}' | tr -d \" | cut -d= -f2-)
+
+    requestJson=$(printf '{"properties":{"remote_licensing":{"owner":"%s","owner_secret":"%s","policy_id":"%s","registration_server":"%s","server_certificate":"%s"}}}' \
+        $myOwner \
+        $myOwnerSecret \
+        $myRegPolicy \
+        $mySdAddress \
+        $mySdCert)
+
+    if [[ "$mySdAddress" != "" ]]; then
+        # Only update if there was an SD address given in UserData
+        echo '#!/bin/bash' > $waitForCmdF
+        echo "curl -s -u admin:${adminPass} -X PUT -H \"Content-Type: application/json\" \
+            -d '$requestJson' \
+            http://localhost:9070/api/tm/4.0/config/active/global_settings" >> $waitForCmdF
+        waitFor "Update Global Settings"
+    fi
+
+    return 0
+}
+
+sefRegIfNecessary () {
+    # Check if vTM is configured for Services Director self-registration
+    regSrv=$(curl -s -u admin:${adminPass} \
+    http://localhost:9070/api/tm/4.0/config/active/global_settings \
+        | jq -r '.properties.remote_licensing.registration_server')
+
+    # The above would return an <address>:<port> of an SD, if configured
+    if [[ "${regSrv}" != "" ]]; then
+        # If it is set, then we need to run self-registration request
+        logMsg "041: Running ${selfReg}"
+        echo '#!/bin/bash' > $waitForCmdF
+        echo "${selfReg}" >> $waitForCmdF
+        waitFor "Self-Register"
+    fi
+    return 0
+}
+
 runElections () {
     # Obtain a lock on $statusForming
     logMsg "021: Starting elections; trying to get lock on tag $electionTag with $statusForming"
@@ -280,39 +375,14 @@ runElections () {
     else
         # Ok, looks like we're clear to proceed
         logMsg "024: We won elections, setting ourselves $statusActive"
+
+        updateRemoteLicensingKeys
+        sefRegIfNecessary
+
         setTag "$stateTag" "$statusActive"
         delTag "$electionTag" "$statusForming"
         return 0
     fi
-}
-
-# Attempt to run "$1"; try until successful.
-#
-waitFor () {
-    errCode=1
-    backoff=0
-    retries=0
-    while [[ "$errCode" != "0" ]]; do
-        let "backoff = 2**retries"
-        if (( $retries > 5 )); then
-            # Exceeded retry budget of 5.
-            # Doing random sleep up to 45 sec, then back to try again.
-            backoff=$RANDOM
-            let "backoff %= 45"
-            logMsg "025: waitFor \"$*\" exceeded retry budget. Sleeping for $backoff second(s), then back to work.."
-            sleep $backoff
-            retries=0
-            backoff=1
-        fi
-        $1 >> /tmp/waitFor.log 2>&1
-        errCode=$?
-        if [[ "$errCode" != "0" ]]; then
-            logMsg "026: $1 returned error $errCode; sleeping for $backoff seconds.."
-            sleep $backoff
-            let "retries += 1"
-        fi
-    done
-    return 0
 }
 
 # Join the cluster. Prerequisites for this func:
@@ -336,6 +406,11 @@ joinCluster () {
     logMsg "029: Picked the node to join: \"$node\""
     logMsg "030: Creating and running cluster join script"
     # doing join
+    #
+    # Note: changed from Join TIPs = Yes to No (arg after {fp})
+    # We expect that external cluster config manager would update the
+    # $machines in TIP groups when it detects new vTMs.
+    #
     tmpf="/tmp/dojoin.$rand_str"
     rm -f $tmpf
     cat > $tmpf << EOF
@@ -367,7 +442,7 @@ MAIN: {
         [ \$clusterTarget ],
         undef,
         { \$clusterTarget => \$certs{\$clusterTarget}->{fp} },
-        "Yes",
+        "No",
         undef,
         "Yes"
     );
@@ -380,7 +455,9 @@ EOF
     chmod +x $tmpf
 
     # No point trying to join the cluster if node isn't ready
-    waitFor "curl -s -k -u admin:${adminPass} https://${node}:9090"
+    echo '#!/bin/bash' > $waitForCmdF
+    echo "curl -s -k -u admin:${adminPass} https://${node}:9090" >> $waitForCmdF
+    waitFor "Check Cluster Ready"
 
     $tmpf >> $awscliLogF 2>&1
     errCode="$?"
@@ -399,7 +476,9 @@ EOF
 # Let's check it by seeing if /opt/zeus/log/errors exists and isn't empty -
 # it's created when vTM software starts. We'll wait util it's so.
 #
-waitFor "test -s /opt/zeus/log/errors"
+echo '#!/bin/bash' > $waitForCmdF
+echo "test -s ${ZEUSHOME}/log/errors" >> $waitForCmdF
+waitFor "Wait for vTM to start"
 
 # Sanity check: can we find ourselves in "running" state?
 #
@@ -438,20 +517,9 @@ while true; do
         logMsg "039: There are active node(s), starting join process."
         joinCluster
         if [[ "$?" == "0" ]]; then
+            sefRegIfNecessary
             logMsg "040: Join successful, setting ourselves $statusActive.."
             setTag "$stateTag" "$statusActive"
-            # Check if vTM is configured for Services Director self-registration
-            grep -q 'remote_licensing!registration_server' /opt/zeus/zxtm/conf/settings.cfg
-            if [[ "$?" == "0" ]]; then
-                # If it is, then we (re)run self-registration request
-                #
-                logMsg "041: Running ${selfReg}"
-                cd /opt/zeus/zxtm/bin
-                waitFor "${selfReg}"
-                # In case the first attempt has failed - doesn't hurt to try again.
-                sleep 60
-                waitFor "${selfReg}"
-            fi
             exit 0
         else
             logMsg "042: Join failed; returning to the main loop."
@@ -467,3 +535,4 @@ while true; do
         fi
     fi
 done
+
