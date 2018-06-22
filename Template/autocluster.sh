@@ -28,6 +28,7 @@ verbose="{{Verbose}}"
 # Tags for Cluster and Elections
 stateTag="ClusterState"
 electionTag="ElectionState"
+licensingTag="LicensingStatus"
 
 # Values for Cluster
 statusActive="Active"
@@ -35,6 +36,12 @@ statusJoining="Joining"
 
 # Value for Elections
 statusForming="Forming"
+
+# Value for Licensing
+statusLicUnlicensed="NoLicense"
+statusLicWaiting="WaitingForLicense"
+statusLicLicensed="Licensed"
+statusLicTimedout="TimedOutWaiting"
 
 # Random string for /tmp files
 rand_str=$(cat /dev/urandom | env LC_CTYPE=C tr -cd 'a-f0-9' | head -c 10)
@@ -279,15 +286,16 @@ waitFor () {
             # Doing random sleep up to 45 sec, then back to try again.
             backoff=$RANDOM
             let "backoff %= 45"
-            logMsg "025: waitFor \"$1\" exceeded retry budget. Sleeping for $backoff second(s), then back to work.."
+            logMsg "021: waitFor \"$1\" exceeded retry budget. Sleeping for $backoff second(s), then back to work.."
             sleep $backoff
             retries=0
             backoff=1
         fi
+        date >> /tmp/waitFor.log
         $waitForCmdF >> /tmp/waitFor.log 2>&1
         errCode=$?
         if [[ "$errCode" != "0" ]]; then
-            logMsg "026: $1 returned error $errCode; sleeping for $backoff seconds.."
+            logMsg "022: $1 returned error $errCode; sleeping for $backoff seconds.."
             sleep $backoff
             let "retries += 1"
         fi
@@ -349,32 +357,70 @@ sefRegIfNecessary () {
     # The above would return an <address>:<port> of an SD, if configured
     if [[ "${regSrv}" != "" ]]; then
         # If it is set, then we need to run self-registration request
-        logMsg "041: Running ${selfReg}"
+        logMsg "023: Running ${selfReg}"
+        setTag "$licensingTag" "$statusLicWaiting"
         echo '#!/bin/bash' > $waitForCmdF
         echo "${selfReg}" >> $waitForCmdF
         waitFor "Self-Register"
+
+        logMsg "024: Waiting for the license to arrive"
+        retries = 0
+        licStatus="License not found"
+        # Do 7 attempts, for the total max time of 127 seconds
+        while [[ "$licStatus" == "License not found" && "$retries" -lt 7 ]]; do
+            logMsg "025: Sleeping for $(( 2** retries )) seconds before (re) trying check for valid license.."
+            sleep $(( 2**retries ))
+            licStatus=$(curl -s http://localhost:9080/zxtm/getexternalfeatures -H "Commkey: $(cat ${ZEUSHOME}/zxtm/conf/commkey)")
+            if [[ "$licStatus" == "License not found" ]]; then
+                (( retries += 1 ))
+            fi
+        done
+        if [[ "$licStatus" == "License not found" ]]; then
+            # Ran out of retries
+            #
+            # There's still chance that the license will arrive later, but
+            # we'll carry on with the "TimedOutWaiting" tag to help Ops to
+            # detect there's potentiall a "slow SD" problem
+            #
+            logMsg "026: Ran out of retries; proceeding as $statusLicTimedout"
+            setTag "$licensingTag" "$statusLicTimedout"
+        else
+            # We're good
+            logMsg "027: Successfully received a license from the SD."
+            setTag "$licensingTag" "$statusLicLicensed"
+        fi
     fi
     return 0
 }
 
 runElections () {
     # Obtain a lock on $statusForming
-    logMsg "021: Starting elections; trying to get lock on tag $electionTag with $statusForming"
+    logMsg "028: Starting elections; trying to get lock on tag $electionTag with $statusForming"
+    # Check if there's another instance that's currently "Forming"
+    findTaggedInstances $stateTag $statusForming
+    list=( $(cat $jqResFName) )
+    if [[ ${#list[*]} > 0 ]]; then
+        # This is most likely due to that other instance sitting there waiting
+        # for its license to arrive from Services Director
+        logMsg "029: There's an another instance that's busy Forming. Bailing on elections."
+        sleep 2
+        return 1
+    fi
     # Just in case - if there was previous unsuccessful run
     getLock "$electionTag" "$statusForming"
-    logMsg "022: Election tag locked; checking if anyone sneaked past us into $statusActive"
+    logMsg "030: Election tag locked; checking if anyone sneaked past us into $statusActive"
     declare -a list
     # Check if there's anyone already $statusActive
     findTaggedInstances $stateTag $statusActive
     list=( $(cat $jqResFName) )
     if [[ ${#list[*]} > 0 ]]; then
         # Clear $statusForming and bail
-        logMsg "023: Looks like someone beat us to it somehow. Bailing on elections."
+        logMsg "031: Looks like someone beat us to it somehow. Bailing on elections."
         delTag $electionTag $statusForming
         return 1
     else
         # Ok, looks like we're clear to proceed
-        logMsg "024: We won elections, setting ourselves $statusActive"
+        logMsg "032: We won elections, setting ourselves $statusActive"
 
         updateRemoteLicensingKeys
         sefRegIfNecessary
@@ -390,21 +436,21 @@ runElections () {
 # 2. $jqResFName has the list of $statusActive instances
 #
 joinCluster () {
-    logMsg "027: Starting cluster join.."
+    logMsg "033: Starting cluster join.."
     declare -a jList
     # Are there instances where $stateTag == $statusActive?
     # There should be since this is how we got here, but let's make double sure.
     # Main loop already did findTaggedInstances, so let's reuse result.
     jList=( $(cat $jqResFName) )
-    logMsg "028: Getting lock on $stateTag $statusJoining"
+    logMsg "034: Getting lock on $stateTag $statusJoining"
     getLock "$stateTag" "$statusJoining"
     num=$RANDOM
     let "num %= ${#jList[*]}"
     instanceToJoin=${jList[$num]}
     getInstanceIP $instanceToJoin
     node=$(cat $jqResFName)
-    logMsg "029: Picked the node to join: \"$node\""
-    logMsg "030: Creating and running cluster join script"
+    logMsg "035: Picked the node to join: \"$node\""
+    logMsg "036: Creating and running cluster join script"
     # doing join
     #
     # Note: changed from Join TIPs = Yes to No (arg after {fp})
@@ -462,11 +508,11 @@ EOF
     $tmpf >> $awscliLogF 2>&1
     errCode="$?"
     if [[ "$errCode" != "0" ]]; then
-        logMsg "031: Some sort of error ($errCode) happened attempting to join the cluster, let's keep trying.."
+        logMsg "037: Some sort of error ($errCode) happened attempting to join the cluster, let's keep trying.."
         rm -f $tmpf
         return 1
     else
-        logMsg "032: Join operation successful, returning to the main loop."
+        logMsg "038: Join operation successful, returning to the main loop."
         rm -f $tmpf
         return 0
     fi
@@ -486,7 +532,7 @@ findTaggedInstances
 declare -a stList
 stList=( $(cat $jqResFName | grep "$myInstanceID") )
 if [[ ${#stList[*]} == 0 ]]; then
-    logMsg "033: Cant't seem to be able to find ourselves running; did you set ClusterID correctly? I have: \"$clusterID\". Bailing."
+    logMsg "039: Cant't seem to be able to find ourselves running; did you set ClusterID correctly? I have: \"$clusterID\". Bailing."
     exit 1
 fi
 
@@ -496,15 +542,19 @@ findTaggedInstances $stateTag $statusActive
 declare -a list
 list=( $(cat $jqResFName | grep $myInstanceID) )
 s_list=$(echo ${list[@]/%/,} | sed -e "s/,$//g")
-logMsg "034: Checking if we are already $statusActive; got: \"$s_list\""
+logMsg "040: Checking if we are already $statusActive; got: \"$s_list\""
 if [[ ${#list[*]} > 0 ]]; then
-    logMsg "035: Looks like we've nothing more to do; exiting."
+    logMsg "041: Looks like we've nothing more to do; exiting."
     exit 0
 else
-    logMsg "036: Welp, we've got work to do."
+    logMsg "042: Welp, we've got work to do."
 fi
 
-logMsg "037: Entering main loop.."
+logMsg "043: Entering main loop.."
+
+# We start unlicensed
+setTag "$licensingTag" "$statusLicUnlicensed"
+
 while true; do
     # Main loop
     declare -a list
@@ -512,26 +562,26 @@ while true; do
     findTaggedInstances $stateTag $statusActive
     list=( $(cat $jqResFName) )
     s_list=$(echo ${list[@]/%/,} | sed -e "s/,$//g")
-    logMsg "038: Checking for $statusActive vTMs; got: \"$s_list\""
+    logMsg "044: Checking for $statusActive vTMs; got: \"$s_list\""
     if [[ ${#list[*]} > 0 ]]; then
-        logMsg "039: There are active node(s), starting join process."
+        logMsg "045: There are active node(s), starting join process."
         joinCluster
         if [[ "$?" == "0" ]]; then
             sefRegIfNecessary
-            logMsg "040: Join successful, setting ourselves $statusActive.."
+            logMsg "046: Join successful, setting ourselves $statusActive.."
             setTag "$stateTag" "$statusActive"
             exit 0
         else
-            logMsg "042: Join failed; returning to the main loop."
+            logMsg "047: Join failed; returning to the main loop."
         fi
     else
-        logMsg "043: No active cluster members; starting elections"
+        logMsg "048: No active cluster members; starting elections"
         runElections
         if [[ "$?" == "0" ]]; then
-            logMsg "044: Won elections, we're done here."
+            logMsg "049: Won elections, we're done here."
             exit 0
         else
-            logMsg "045: Lost elections; returning to the main loop."
+            logMsg "050: Lost elections; returning to the main loop."
         fi
     fi
 done
