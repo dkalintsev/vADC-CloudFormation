@@ -170,7 +170,7 @@ delTag () {
     # Check if we don't come up when searching for the tag, i.e., tag is gone
     declare -a stList
     stList=( blah )
-    while [[ ${#stList[*]} > 0 ]]; do
+    while [[ ${#stList[*]} -gt 0 ]]; do
         findTaggedInstances $1 $2
         stList=( $(cat $jqResFName | grep "$myInstanceID") )
         logMsg "010: Checking tagged instances \"$1:$2\", expecting NOT to see $myInstanceID; got \"$stList\""
@@ -226,11 +226,11 @@ getLock () {
         list=( blah )
         # Get a list of instances with $stateTag = $tag
         # if there are any, wait 5 seconds, then retry until there are none
-        while [[ ${#list[*]} > 0 ]]; do
+        while [[ ${#list[*]} -gt 0 ]]; do
             logMsg "013: Looping until there's no instance matching \"$1:$2\""
             findTaggedInstances $1 $2
             list=( $(cat $jqResFName | grep -v $myInstanceID) )
-            if [[ ${#list[*]} > 0 ]]; then
+            if [[ ${#list[*]} -gt 0 ]]; then
                 s_list=$(echo ${list[@]/%/,} | sed -e "s/,$//g")
                 logMsg "014: Found some: \"$s_list\", sleeping..."
                 sleep 5
@@ -247,12 +247,12 @@ getLock () {
         setTag $1 $2
         list=( blah )
         # check if there are other tagged instances who managed to beat us to it
-        while [[ ${#list[*]} > 0 ]]; do
+        while [[ ${#list[*]} -gt 0 ]]; do
             findTaggedInstances $1 $2
             list=( $(cat $jqResFName | grep -v "$myInstanceID") )
             s_list=$(echo ${list[@]/%/,} | sed -e "s/,$//g")
             logMsg "017: Looking for others with the same tags, found: \"$s_list\""
-            if [[ ${#list[*]} > 0 ]]; then
+            if [[ ${#list[*]} -gt 0 ]]; then
                 # there's someone else - clash
                 logMsg "018: Clash detected, calling delTag: \"$1:$2\""
                 delTag $1 $2
@@ -364,7 +364,7 @@ sefRegIfNecessary () {
         waitFor "Self-Register"
 
         logMsg "024: Waiting for the license to arrive"
-        retries = 0
+        retries=0
         licStatus="License not found"
         # Do 7 attempts, for the total max time of 127 seconds
         while [[ "$licStatus" == "License not found" && "$retries" -lt 7 ]]; do
@@ -399,7 +399,7 @@ runElections () {
     # Check if there's another instance that's currently "Forming"
     findTaggedInstances $stateTag $statusForming
     list=( $(cat $jqResFName) )
-    if [[ ${#list[*]} > 0 ]]; then
+    if [[ ${#list[*]} -gt 0 ]]; then
         # This is most likely due to that other instance sitting there waiting
         # for its license to arrive from Services Director
         logMsg "029: There's an another instance that's busy Forming. Bailing on elections."
@@ -413,7 +413,7 @@ runElections () {
     # Check if there's anyone already $statusActive
     findTaggedInstances $stateTag $statusActive
     list=( $(cat $jqResFName) )
-    if [[ ${#list[*]} > 0 ]]; then
+    if [[ ${#list[*]} -gt 0 ]]; then
         # Clear $statusForming and bail
         logMsg "031: Looks like someone beat us to it somehow. Bailing on elections."
         delTag $electionTag $statusForming
@@ -543,7 +543,7 @@ declare -a list
 list=( $(cat $jqResFName | grep $myInstanceID) )
 s_list=$(echo ${list[@]/%/,} | sed -e "s/,$//g")
 logMsg "040: Checking if we are already $statusActive; got: \"$s_list\""
-if [[ ${#list[*]} > 0 ]]; then
+if [[ ${#list[*]} -gt 0 ]]; then
     logMsg "041: Looks like we've nothing more to do; exiting."
     exit 0
 else
@@ -563,7 +563,7 @@ while true; do
     list=( $(cat $jqResFName) )
     s_list=$(echo ${list[@]/%/,} | sed -e "s/,$//g")
     logMsg "044: Checking for $statusActive vTMs; got: \"$s_list\""
-    if [[ ${#list[*]} > 0 ]]; then
+    if [[ ${#list[*]} -gt 0 ]]; then
         logMsg "045: There are active node(s), starting join process."
         joinCluster
         if [[ "$?" == "0" ]]; then
